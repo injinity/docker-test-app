@@ -1,1 +1,1 @@
-rootProject.name = "template"
+rootProject.name = "docker-test-app"
