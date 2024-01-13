@@ -1,0 +1,53 @@
+name: Main
+
+on:
+  push:
+    branches: [ "main" ]
+    # Publish semver tags as releases.
+    tags: [ 'main' ]
+
+env:
+  SUB_ORG: ${{ vars.SUB_ORG }}
+  # Use docker.io for Docker Hub if empty
+  REGISTRY: registry.injinity.org:5000
+  # github.repository as <account>/<repo>
+  REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+
+jobs:
+  docker:
+    name: Create and publish this service's docker image
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'liberica'
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Build the Docker image
+        run: |
+          ./gradlew bootBuildImage \
+            -PregistryUsername=${{ env.REGISTRY_USERNAME }} \
+            -PregistryPassword=${{ env.REGISTRY_PASSWORD }} \
+            -PregistryUrl=${{ env.REGISTRY }} \
+            -PprojOrg=${{ env.SUB_ORG }} \
+            -PprojEnv=prod \
+            --stacktrace
